@@ -1,0 +1,8 @@
+{
+    "name": "jakedaleweb/silverstripe-certalert",
+    "description": "Sends email reminders to renew arbitrary certificates",
+    "type": "silverstripe-module",
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^2.0"
+    }
+}
