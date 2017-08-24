@@ -32,3 +32,8 @@ Valid extensions for certificates which will be checked are:
 ```
 
 An additional field is added in SiteConfig (settings) under Main.CertAlert this field can be used to add additional text such as links to documentation to the content of the emails sent, note that this field is generic and applied to all emails sent by this module in a project.
+
+Once set-up you should configure a cron job to run the `CertAlertTask` at a suitable time, for example each Sunday at midnight:
+```
+www-data 0 0 * * 0 php /path/to/framework/cli-scripts.php dev/tasks/CertAlertTask
+```

@@ -33,7 +33,10 @@ class CertAlertTest extends SapphireTest
             'test@kjnkjn.com',
             'test2@kjnkjn.com',
         ];
-
+        Config::nest();
+        Config::inst()->remove('CertAlert', 'cert_paths');
+        Config::inst()->remove('CertAlert', 'alert_time');
+        Config::inst()->remove('CertAlert', 'alert_addresses');
         Config::inst()->update('CertAlert', 'cert_paths', self::$cert_paths);
         Config::inst()->update('CertAlert', 'alert_time', "8 weeks");
         Config::inst()->update('CertAlert', 'alert_addresses', $addresses);
@@ -64,12 +67,14 @@ class CertAlertTest extends SapphireTest
                 unlink("$certPath"."crt".".$extension");
             }
         }
+        Config::unnest();
     }
 
     public function testGetCertsToCheck()
     {
         $certAlert = new CertAlert();
         $certs = $certAlert->getCertsToCheck();
+        print_r($certs);
         $testPaths = [
             '/tmp/crt.cer',
             '/tmp/test/crt.cer',
