@@ -71,7 +71,7 @@ class CertAlert extends \Object
     /**
     * @return Array
     */
-    private function get_cert_paths()
+    private function getCertPaths()
     {
         $paths = Config::inst()->get('CertAlert', 'cert_paths');
         if (!$paths) {
@@ -91,67 +91,25 @@ class CertAlert extends \Object
     /**
     * @return String
     */
-    private function get_alert_time()
+    private function getAlertTime()
     {
         $time = Config::inst()->get('CertAlert', 'alert_time');
         $timeUnit = explode(' ', $time);
         if (!in_array($timeUnit[1], self::$allowed_time_units)) {
-            throw new Exception("Invalid unit of time for alert_time, see the README for valid units");
+            return false;
         }
         return $time;
     }
 
     /**
+    * Return certificates that will be checked at the supplied cert_paths
+    * @param Array $certPaths
     * @return Array
     */
-    private function get_alert_addresses()
+    public function getCertsToCheck()
     {
-        $addresses = Config::inst()->get('CertAlert', 'alert_addresses');
-        if (!$addresses) {
-            throw new Exception("No alert_addresses supplied");
-        }
-        return $addresses;
-    }
-
-    /**
-    * Sends the email alert
-    *
-    * @param Array $certinfo | String $alertTime
-    * @return Email $sent
-    */
-    private function email_alert($certPath, $certInfo, $alertTime)
-    {
-        $config = SiteConfig::current_site_config();
-        $emailContent = $config->CertAlertText;
-        $sendTo = self::get_alert_addresses();
-
-        foreach ($sendTo as $to) {
-            $email = Email::create();
-            $email->setTo($to);
-            $email->setFrom('platform@silverstripe.com');
-            $email->setSubject(sprintf('Certificate for %s is about to expire', $certInfo['subject']['CN']));
-            if ($emailContent) {
-                $email->setBody(sprintf("Your certificate loaded at %s covering the domain %s is about to expire in %s <br> $emailContent", $certPath, $certInfo['subject']['CN'], $certInfo['validTo_time_t']));
-            } else {
-                $email->setBody(sprintf('Your certificate loaded at %s is about to expire in %s', $certPath, $certInfo['subject']['CN'], $certInfo['validTo_time_t']));
-            }
-            $sent = $email->send();
-        }
-    }
-
-    /**
-    * Checks supplied certificate paths and emails alerts for each if expiring within alert_time
-    * @return Array $message
-    */
-    public function check_cert_dirs()
-    {
-        $alertTime = $this->get_alert_time();
         $allowedExtensions = Config::inst()->get('CertAlert', 'allowed_certificate_extensions');
-
-        // The time to compare with the expiration time of each certificate - as a UNIX timestamp
-        $nowPlusAlertTime = strtotime($alertTime);
-
-        $certPaths = $this->get_cert_paths();
+        $certPaths = $this->getCertPaths();
         $certs = [];
         foreach ($certPaths as $certPath) {
             $filesInDir = scandir($certPath);
@@ -166,17 +124,67 @@ class CertAlert extends \Object
 
             }
         }
+        return $certs;
+    }
 
-        if (!$certs) {
-            return false;
+    /**
+    * Sends the email alert
+    *
+    * @param String $certPath, Array $certinfo, String $alertTime, Array $sendTo
+    * @return Email $sent | String
+    */
+    private function emailAlert($certPath, $certInfo, $alertTime, $sendTo)
+    {
+        $config = SiteConfig::current_site_config();
+        $emailContent = $config->CertAlertText;
+
+        foreach ($sendTo as $to) {
+            $email = Email::create();
+            $email->setTo($to);
+            $email->setFrom('platform@silverstripe.com');
+            $email->setSubject(sprintf('Certificate for %s is about to expire', $certInfo['subject']['CN']));
+            if ($emailContent) {
+                $email->setBody(sprintf("Your certificate loaded at %s covering the domain %s is about to expire in %s <br> $emailContent", $certPath, $certInfo['subject']['CN'], $certInfo['validTo_time_t']));
+            } else {
+                $email->setBody(sprintf('Your certificate loaded at %s is about to expire in %s', $certPath, $certInfo['subject']['CN'], $certInfo['validTo_time_t']));
+            }
+            $email->send();
+        }
+    }
+
+    /**
+    * Checks supplied certificate paths and emails alerts for each if expiring within alert_time
+    * @return Array $message
+    */
+    public function checkCerts()
+    {
+        $message = [];
+
+        $alertTime = $this->getAlertTime();
+        if (!$alertTime) {
+            $message[] = "Alert time incorectly configured, see README for valid units.";
         }
 
-        $message = [];
+        $nowPlusAlertTime = strtotime($alertTime);
+        $certs = $this->getCertsToCheck();
+        if (!$certs) {
+            $message[] = "No certs to check, you may want to see if there are certificates with the allowed extensions, as documented in the README, in the destination directories.";
+        }
+
+        $sendTo = Config::inst()->get('CertAlert', 'alert_addresses');
+        if (!$sendTo) {
+            $message[] = "No alert_addresses configured to send alerts to";
+        }
+
+        if ($message) {
+            return $message;
+        }
+
         foreach ($certs as $cert) {
             $certinfo = openssl_x509_parse(file_get_contents($cert));
             $niceTime = date("m/d/Y", $certinfo['validTo_time_t']);
             if ($certinfo['validTo_time_t'] < $nowPlusAlertTime) {
-                $this->email_alert($cert, $certinfo, $alertTime);
+                $this->emailAlert($cert, $certinfo, $alertTime, $sendTo);
                 $message[] = "$cert is expiring on $niceTime, cert alerted";
                 continue;
             }
