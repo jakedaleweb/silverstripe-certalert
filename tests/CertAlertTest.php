@@ -93,14 +93,3 @@ class CertAlertTest extends SapphireTest
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
