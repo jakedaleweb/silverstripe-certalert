@@ -1,9 +1,0 @@
----
-Name: certalert
-After:
-  - 'framework/*'
-  - 'cms/*'
----
-SiteConfig:
-  extensions:
-   - CertAlertSiteConfigExtension
