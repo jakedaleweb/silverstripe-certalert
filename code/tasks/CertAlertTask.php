@@ -2,6 +2,7 @@
 
 class CertAlertTask extends BuildTask
 {
+    protected $description = "Alerts your certs - checks given paths and emails given recipients if any certificates are about to expire";
     public function run($request)
     {
         $certAlert = new CertAlert();
